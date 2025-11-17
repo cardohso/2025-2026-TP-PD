@@ -10,7 +10,7 @@ public class DirectoryService {
     private static final int DS_PORT = 9000;
 
     public static void main(String[] args) {
-        System.out.println("🚀 Serviço de Diretoria a iniciar no porto UDP: " + DS_PORT);
+        System.out.println("Serviço de Diretoria a iniciar no porto UDP: " + DS_PORT);
 
         try (Udp dsUdp = new Udp(DS_PORT)) {
 
@@ -23,7 +23,7 @@ public class DirectoryService {
                 String clientAddress = dsUdp.getLastAddress().getHostAddress();
                 int clientPort = dsUdp.getLastPort();
 
-                System.out.println("📩 Mensagem recebida de " + clientAddress + ":" + clientPort);
+                System.out.println("Mensagem recebida de " + clientAddress + ":" + clientPort);
                 System.out.println("Conteúdo: " + clientMessage);
 
                 if ("CLIENT_REQUEST".equals(clientMessage.getType())) {
