@@ -15,7 +15,7 @@ public class Client {
         System.out.println("Cliente a iniciar...");
         String principalServer = null;
 
-        // FASE 1: Comunicação UDP com o Serviço de Diretoria (DS)
+        // Comunicação UDP com o Serviço de Diretoria
         try (Udp clientUdp = new Udp(DS_ADDRESS, DS_PORT)) {
 
             Message requestMessage = new Message("CLIENT_REQUEST", "GET_PRINCIPAL_SERVER");
@@ -42,7 +42,7 @@ public class Client {
             return; // Termina, conforme o requisito
         }
 
-        // FASE 2: Ligação TCP ao Servidor Principal (após sucesso na Fase 1)
+        // Ligação TCP ao Servidor Principal
         if (principalServer != null) {
             String[] parts = principalServer.split(":");
             String ip = parts[0];
@@ -53,13 +53,13 @@ public class Client {
             try (Tcp clientTcp = new Tcp(ip, port)) {
                 System.out.println("Conexão TCP estabelecida com sucesso!");
 
-                // *** Aqui entraria a lógica de AUTENTICAÇÃO/REGISTO via TCP ***
+                // lógica de AUTENTICAÇÃO/REGISTO via TCP
 
                 // Exemplo: Simular envio de credenciais
                 clientTcp.send(new Message("AUTH_REQUEST", "user@isec.pt:password123"));
                 System.out.println("Credenciais enviadas para o servidor.");
 
-                // A sua lógica continuaria aqui (esperar por resposta, menus, etc.)
+                // lógica(esperar por resposta, menus, etc.)
 
             } catch (IOException e) {
                 System.err.println("Erro ao estabelecer ou usar a conexão TCP com o servidor principal: " + e.getMessage());

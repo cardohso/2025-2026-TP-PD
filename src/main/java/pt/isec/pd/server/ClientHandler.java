@@ -1,30 +1,39 @@
 package pt.isec.pd.server;
 
-import java.net.*;
+import pt.isec.pd.common.Message;
+
 import java.io.*;
+import java.net.Socket;
 
 public class ClientHandler extends Thread {
     private final Socket clientSocket;
-    private final InetAddress directoryAddress;
-    private final int directoryPort;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
-        this.directoryAddress = socket.getInetAddress();
-        this.directoryPort = socket.getPort();
     }
 
     @Override
     public void run() {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+        try (ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+             ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream())) {
 
-            String request;
-            while ((request = in.readLine()) != null) {
-                String response = processRequest(request);
-                out.println(response);
+            Object obj;
+            while ((obj = in.readObject()) != null) {
+                if (obj instanceof Message) {
+                    Message msg = (Message) obj;
+                    System.out.println("Received from client: " + msg);
+
+                    // Simple ACK response
+                    Message response = new Message("ACK", "ACK: " + msg.getType() + " -> " + msg.getContent());
+                    out.writeObject(response);
+                    out.flush();
+                } else {
+                    System.out.println("Received unknown object: " + obj);
+                }
             }
-        } catch (IOException e) {
+        } catch (EOFException eof) {
+            // client closed connection
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         } finally {
             try {
@@ -32,10 +41,5 @@ public class ClientHandler extends Thread {
                     clientSocket.close();
             } catch (IOException ignored) {}
         }
-    }
-
-    // temp
-    private String processRequest(String request) {
-        return "ACK: " + request;
     }
 }
