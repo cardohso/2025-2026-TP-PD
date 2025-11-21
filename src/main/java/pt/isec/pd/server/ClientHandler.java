@@ -1,9 +1,11 @@
+// java
 package pt.isec.pd.server;
 
 import pt.isec.pd.common.Message;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class ClientHandler extends Thread {
     private final Socket clientSocket;
@@ -23,18 +25,24 @@ public class ClientHandler extends Thread {
                     Message msg = (Message) obj;
                     System.out.println("Received from client: " + msg);
 
-                    // Simple ACK response
                     Message response = new Message("ACK", "ACK: " + msg.getType() + " -> " + msg.getContent());
-                    out.writeObject(response);
-                    out.flush();
+                    try {
+                        out.writeObject(response);
+                        out.flush();
+                    } catch (SocketException se) {
+                        System.err.println("Client socket closed before response could be sent: " + se.getMessage());
+                        break;
+                    }
                 } else {
                     System.out.println("Received unknown object: " + obj);
                 }
             }
         } catch (EOFException eof) {
-            // client closed connection
+            // client closed connection normally
+        } catch (SocketException se) {
+            System.err.println("Socket error in client handler: " + se.getMessage());
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            System.err.println("I/O or serialization error in client handler: " + e.getMessage());
         } finally {
             try {
                 if (clientSocket != null && !clientSocket.isClosed())
