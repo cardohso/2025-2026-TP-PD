@@ -15,13 +15,15 @@ public class ConnectDB {
     private static String initDefaultUrl() {
         String file = System.getProperty("pd.data.db");
         if (file == null || file.isBlank()) {
-            file = "test.sqlite";
+            file = "test.db";
         }
         return "jdbc:sqlite:" + file;
     }
 
     public static void setDatabaseFile(String file) {
-        if (file == null || file.isBlank()) throw new IllegalArgumentException("file must not be null or empty");
+        if (file == null || file.isBlank()){
+
+        }
         synchronized (ConnectDB.class) {
             if (conn != null) throw new IllegalStateException("Cannot change database file after connection is opened");
             url = "jdbc:sqlite:" + file;
