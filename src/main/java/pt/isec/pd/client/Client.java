@@ -1,4 +1,3 @@
-// java
 package pt.isec.pd.client;
 
 import pt.isec.pd.sockets.Udp;
@@ -12,29 +11,29 @@ public class Client {
     private static final int DS_PORT = 9000;
 
     public static void main(String[] args) {
-        System.out.println("Cliente a iniciar...");
+        System.out.println("Client starting...");
         String principalServer = null;
 
         try (Udp clientUdp = new Udp(DS_ADDRESS, DS_PORT)) {
             Message requestMessage = new Message("CLIENT_REQUEST", "GET_PRINCIPAL_SERVER");
             clientUdp.send(requestMessage);
-            System.out.println("Pedido UDP enviado para o DS.");
+            System.out.println("UDP request sent to DS.");
 
             clientUdp.setSoTimeout(5000);
-            System.out.println("\n--- Aguardando resposta do DS...");
+            System.out.println("\n--- Waiting for response from DS...");
             Object receivedObject = clientUdp.receive();
             Message responseMessage = (Message) receivedObject;
 
             if ("DS_RESPONSE".equals(responseMessage.getType())) {
                 principalServer = responseMessage.getContent();
-                System.out.println("Resposta recebida. Servidor Principal: **" + principalServer + "**");
+                System.out.println("Response received. Principal Server: **" + principalServer + "**");
             } else {
-                System.out.println("Resposta inesperada do DS. A terminar.");
+                System.out.println("Unexpected response from DS. Exiting.");
                 return;
             }
 
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Falha na comunicação UDP com o DS. A terminar. (Motivo: " + e.getMessage() + ")");
+            System.err.println("Failed UDP communication with DS. Exiting. (Reason: " + e.getMessage() + ")");
             return;
         }
 
@@ -43,33 +42,33 @@ public class Client {
             String ip = parts[0];
             int port = Integer.parseInt(parts[1]);
 
-            System.out.println("\n--- Estabelecendo conexão TCP com o servidor principal: " + ip + ":" + port);
+            System.out.println("\n--- Establishing TCP connection to principal server: " + ip + ":" + port);
 
             // Keep the TCP connection open and wait for server response before closing
             try (Tcp clientTcp = new Tcp(ip, port)) {
-                System.out.println("Conexão TCP estabelecida com sucesso!");
+                System.out.println("TCP connection established successfully!");
 
                 clientTcp.send(new Message("AUTH_REQUEST", "user@isec.pt:password123"));
-                System.out.println("Credenciais enviadas para o servidor.");
+                System.out.println("Credentials sent to server.");
 
-                // Wait for server ACK (avoid closing immediately)
+                // Wait for server (avoid closing immediately)
                 try {
                     Object resp = clientTcp.receive(); // may throw IOException or ClassNotFoundException
                     if (resp instanceof Message) {
                         Message serverMsg = (Message) resp;
-                        System.out.println("Resposta do servidor: " + serverMsg);
+                        System.out.println("Server response: " + serverMsg);
                     } else {
-                        System.out.println("Resposta inesperada via TCP.");
+                        System.out.println("Unexpected TCP response.");
                     }
                 } catch (ClassNotFoundException | IOException e) {
-                    System.err.println("Erro ao receber resposta TCP: " + e.getMessage());
+                    System.err.println("Error receiving TCP response: " + e.getMessage());
                 }
 
             } catch (IOException e) {
-                System.err.println("Erro ao estabelecer ou usar a conexão TCP com o servidor principal: " + e.getMessage());
+                System.err.println("Error establishing or using TCP connection to principal server: " + e.getMessage());
             }
         }
 
-        System.out.println("\n Cliente encerrado.");
+        System.out.println("\n Client closed.");
     }
 }

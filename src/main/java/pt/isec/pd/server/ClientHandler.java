@@ -1,4 +1,3 @@
-// java
 package pt.isec.pd.server;
 
 import pt.isec.pd.common.Message;
