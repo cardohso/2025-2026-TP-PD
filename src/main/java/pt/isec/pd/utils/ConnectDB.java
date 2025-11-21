@@ -13,7 +13,7 @@ public class ConnectDB {
     private ConnectDB() { }
 
     private static String initDefaultUrl() {
-        String file = System.getProperty("pd.db.file");
+        String file = System.getProperty("pd.data.db");
         if (file == null || file.isBlank()) {
             file = "test.sqlite";
         }
