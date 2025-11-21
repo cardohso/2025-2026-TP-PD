@@ -26,7 +26,7 @@ public class Client {
 
             if ("DS_RESPONSE".equals(responseMessage.getType())) {
                 principalServer = responseMessage.getContent();
-                System.out.println("Response received. Principal Server: **" + principalServer + "**");
+                System.out.println("Response received. Principal Server: " + principalServer);
             } else {
                 System.out.println("Unexpected response from DS. Exiting.");
                 return;
@@ -38,14 +38,28 @@ public class Client {
         }
 
         if (principalServer != null) {
-            String[] parts = principalServer.split(":");
-            String ip = parts[0];
-            int port = Integer.parseInt(parts[1]);
 
-            System.out.println("\n--- Establishing TCP connection to principal server: " + ip + ":" + port);
+            // Extract IP/host and port safely
+            String[] tokens = principalServer.split(":", 2);
+            if (tokens.length != 2) {
+                System.err.println("Invalid principal server, expected format host:port");
+                return;
+            }
+
+            String host = tokens[0];
+            int port;
+            try {
+                port = Integer.parseInt(tokens[1]);
+            } catch (NumberFormatException nfe) {
+                System.err.println("Invalid port in principal server: " + tokens[1]);
+                return;
+            }
+
+            System.out.println("Connecting to Principal Server at " + host + ":" + port);
+            System.out.println("\n--- Establishing TCP connection to principal server: " + host + ":" + port);
 
             // Keep the TCP connection open and wait for server response before closing
-            try (Tcp clientTcp = new Tcp(ip, port)) {
+            try (Tcp clientTcp = new Tcp(host, port)) {
                 System.out.println("TCP connection established successfully!");
 
                 clientTcp.send(new Message("AUTH_REQUEST", "user@isec.pt:password123"));
