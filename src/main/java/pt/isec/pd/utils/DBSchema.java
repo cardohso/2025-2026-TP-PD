@@ -59,7 +59,7 @@ public class DBSchema {
         try (Connection conn = ConnectDB.getConnection();
              Statement stmt = conn.createStatement()) {
 
-            // Ensure SQLite enforces foreign keys for this connection
+            // Enforces foreign keys for the connection
             stmt.execute("PRAGMA foreign_keys = ON");
             stmt.execute(schema);
         } catch (SQLException ex) {
