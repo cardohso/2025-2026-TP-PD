@@ -7,6 +7,7 @@ import pt.isec.pd.common.Message;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Client {
     private static final String DS_ADDRESS = "127.0.0.1";
@@ -39,93 +40,154 @@ public class Client {
             return;
         }
 
-        if (principalServer != null) {
+        if (principalServer == null) return;
 
-            String[] tokens = principalServer.split(":", 2);
-            if (tokens.length != 2) {
-                System.err.println("Invalid principal server, expected format host:port");
-                return;
-            }
+        String[] tokens = principalServer.split(":", 2);
+        if (tokens.length != 2) {
+            System.err.println("Invalid principal server, expected format host:port");
+            return;
+        }
 
-            String host = tokens[0];
-            int port;
-            try {
-                port = Integer.parseInt(tokens[1]);
-            } catch (NumberFormatException nfe) {
-                System.err.println("Invalid port in principal server: " + tokens[1]);
-                return;
-            }
+        String host = tokens[0];
+        int port;
+        try {
+            port = Integer.parseInt(tokens[1]);
+        } catch (NumberFormatException nfe) {
+            System.err.println("Invalid port in principal server: " + tokens[1]);
+            return;
+        }
 
-            System.out.println("Connecting to Principal Server at " + host + ":" + port);
-            System.out.println("\n--- Establishing TCP connection to principal server: " + host + ":" + port);
+        System.out.println("Connecting to Principal Server at " + host + ":" + port);
+        System.out.println("\n--- Establishing TCP connection to principal server: " + host + ":" + port);
 
-            Tcp clientTcp = null;
-            Thread listener = null;
-            try {
-                clientTcp = new Tcp(host, port);
-                System.out.println("TCP connection established successfully!");
+        Tcp clientTcp = null;
+        Thread listener = null;
+        AtomicBoolean loggedIn = new AtomicBoolean(false);
 
-                // start background listener to print server messages
-                Tcp finalClientTcp = clientTcp;
-                listener = new Thread(() -> {
-                    try {
-                        while (!Thread.currentThread().isInterrupted()) {
-                            Object resp = finalClientTcp.receive();
-                            if (resp instanceof Message) {
-                                Message serverMsg = (Message) resp;
-                                System.out.println("\n[Server] " + serverMsg);
-                                System.out.print("> ");
-                            } else {
-                                System.out.println("\n[Server] Unexpected TCP response.");
-                                System.out.print("> ");
+        try {
+            clientTcp = new Tcp(host, port);
+            System.out.println("TCP connection established successfully!");
+
+            Tcp finalClientTcp = clientTcp;
+            listener = new Thread(() -> {
+                try {
+                    while (!Thread.currentThread().isInterrupted()) {
+                        Object resp = finalClientTcp.receive();
+                        if (resp instanceof Message) {
+                            Message serverMsg = (Message) resp;
+                            System.out.println("\n[Server] " + serverMsg);
+                            // mark logged in when server sends AUTH_SUCCESS
+                            if ("AUTH_SUCCESS".equals(serverMsg.getType())) {
+                                loggedIn.set(true);
+                            } else if ("LOGOUT_SUCCESS".equals(serverMsg.getType())) {
+                                loggedIn.set(false);
                             }
+                            System.out.print("> ");
+                        } else {
+                            System.out.println("\n[Server] Unexpected TCP response.");
+                            System.out.print("> ");
                         }
-                    } catch (IOException | ClassNotFoundException e) {
-                        System.err.println("\nListener stopped: " + e.getMessage());
                     }
-                }, "tcp-listener");
-                listener.setDaemon(true);
-                listener.start();
+                } catch (IOException | ClassNotFoundException e) {
+                    System.err.println("\nListener stopped: " + e.getMessage());
+                }
+            }, "tcp-listener");
+            listener.setDaemon(true);
+            listener.start();
 
-                // send initial auth
-                clientTcp.send(new Message("AUTH_REQUEST", "user@isec.pt:password123"));
-                System.out.println("Credentials sent to server.");
-
-                // interactive console loop; type `exit` to close client
-                try (BufferedReader console = new BufferedReader(new InputStreamReader(System.in))) {
-                    System.out.println("Enter messages to send or type `exit` to quit.");
-                    String line;
-                    System.out.print("> ");
-                    while ((line = console.readLine()) != null) {
-                        if ("exit".equalsIgnoreCase(line.trim())) {
-                            System.out.println("Exiting by user request...");
+            try (BufferedReader console = new BufferedReader(new InputStreamReader(System.in))) {
+                // initial menu loop: Register / Login / Exit
+                while (true) {
+                    while (!loggedIn.get()) {
+                        System.out.println("\n--- Initial Menu ---");
+                        System.out.println("1) Register");
+                        System.out.println("2) Login");
+                        System.out.println("3) Exit");
+                        System.out.print("Choose an option: ");
+                        String choice = console.readLine();
+                        if (choice == null) {
                             break;
                         }
-                        if (line.trim().isEmpty()) {
-                            System.out.print("> ");
-                            continue;
+                        choice = choice.trim();
+                        if ("1".equals(choice)) {
+                            System.out.print("Name: ");
+                            String name = console.readLine();
+                            System.out.print("Email: ");
+                            String email = console.readLine();
+                            System.out.print("Password: ");
+                            String password = console.readLine();
+                            if (email == null || password == null) continue;
+                            String payload = email + "|" + password + "|" + (name == null ? "" : name);
+                            clientTcp.send(new Message("REGISTER_REQUEST", payload));
+                            System.out.println("Registration request sent. Waiting for server response...");
+                            // continue to wait for server response (listener will print it)
+                        } else if ("2".equals(choice)) {
+                            System.out.print("Email: ");
+                            String email = console.readLine();
+                            System.out.print("Password: ");
+                            String password = console.readLine();
+                            if (email == null || password == null) continue;
+                            String payload = email + "|" + password;
+                            clientTcp.send(new Message("AUTH_REQUEST", payload));
+                            System.out.println("Login request sent. Waiting for server response...");
+                            // wait short time for AUTH_SUCCESS
+                            long start = System.currentTimeMillis();
+                            while (!loggedIn.get() && System.currentTimeMillis() - start < 10000) {
+                                Thread.sleep(100);
+                            }
+                            if (!loggedIn.get()) {
+                                System.out.println("No successful login detected yet. Check server response.");
+                            }
+                        } else if ("3".equals(choice) || "exit".equalsIgnoreCase(choice)) {
+                            System.out.println("Exiting by user request...");
+                            return;
+                        } else {
+                            System.out.println("Invalid option.");
                         }
-                        clientTcp.send(new Message("CLIENT_MESSAGE", line));
-                        System.out.print("> ");
                     }
-                }
 
-            } catch (IOException e) {
-                System.err.println("Error establishing or using TCP connection to principal server: " + e.getMessage());
-            } finally {
-                if (listener != null) {
-                    listener.interrupt();
-                }
-                if (clientTcp != null) {
-                    try {
-                        clientTcp.close();
-                    } catch (IOException e) {
-                        System.err.println("Error closing TCP connection: " + e.getMessage());
+                    // logged in -> interactive loop
+                    if (loggedIn.get()) {
+                        System.out.println("\nEnter messages to send or type `logout` to return to menu, `exit` to quit.");
+                        String line;
+                        System.out.print("> ");
+                        while ((line = console.readLine()) != null) {
+                            if ("exit".equalsIgnoreCase(line.trim())) {
+                                System.out.println("Exiting by user request...");
+                                return;
+                            }
+                            if ("logout".equalsIgnoreCase(line.trim())) {
+                                clientTcp.send(new Message("LOGOUT_REQUEST", ""));
+                                // listener will set loggedIn = false on LOGOUT_SUCCESS
+                                System.out.println("Logout requested. Returning to initial menu...");
+                                break;
+                            }
+                            if (line.trim().isEmpty()) {
+                                System.out.print("> ");
+                                continue;
+                            }
+                            clientTcp.send(new Message("CLIENT_MESSAGE", line));
+                            System.out.print("> ");
+                        }
                     }
+                }
+            }
+
+        } catch (IOException | InterruptedException e) {
+            System.err.println("Error: " + e.getMessage());
+        } finally {
+            if (listener != null) {
+                listener.interrupt();
+            }
+            if (clientTcp != null) {
+                try {
+                    clientTcp.close();
+                } catch (IOException e) {
+                    System.err.println("Error closing TCP connection: " + e.getMessage());
                 }
             }
         }
 
-        System.out.println("\n Client closed.");
+        System.out.println("\nClient closed.");
     }
 }
