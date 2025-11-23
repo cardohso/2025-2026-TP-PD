@@ -110,24 +110,45 @@ public class Client {
                         }
                         choice = choice.trim();
                         if ("1".equals(choice)) {
+                            // choose role
+                            System.out.println("Register as: 1) Student  2) Docente");
+                            System.out.print("Choose role: ");
+                            String roleChoice = console.readLine();
+                            String role = "STUDENT";
+                            if ("2".equals(roleChoice)) role = "DOCENTE";
+
                             System.out.print("Name: ");
                             String name = console.readLine();
                             System.out.print("Email: ");
                             String email = console.readLine();
                             System.out.print("Password: ");
                             String password = console.readLine();
+                            String extra = "";
+                            if ("STUDENT".equals(role)) {
+                                System.out.print("Student Number: ");
+                                extra = console.readLine();
+                            } else {
+                                System.out.print("Registration Code: ");
+                                extra = console.readLine();
+                            }
                             if (email == null || password == null) continue;
-                            String payload = email + "|" + password + "|" + (name == null ? "" : name);
+                            String payload = role + "|" + email + "|" + password + "|" + (name == null ? "" : name) + "|" + (extra == null ? "" : extra);
                             clientTcp.send(new Message("REGISTER_REQUEST", payload));
                             System.out.println("Registration request sent. Waiting for server response...");
-                            // continue to wait for server response (listener will print it)
                         } else if ("2".equals(choice)) {
+                            // choose role
+                            System.out.println("Login as: 1) Student  2) Docente");
+                            System.out.print("Choose role: ");
+                            String roleChoice = console.readLine();
+                            String role = "STUDENT";
+                            if ("2".equals(roleChoice)) role = "DOCENTE";
+
                             System.out.print("Email: ");
                             String email = console.readLine();
                             System.out.print("Password: ");
                             String password = console.readLine();
                             if (email == null || password == null) continue;
-                            String payload = email + "|" + password;
+                            String payload = role + "|" + email + "|" + password;
                             clientTcp.send(new Message("AUTH_REQUEST", payload));
                             System.out.println("Login request sent. Waiting for server response...");
                             // wait short time for AUTH_SUCCESS

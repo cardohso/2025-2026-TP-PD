@@ -9,11 +9,12 @@ public class DBSchema {
 
     public static void createTables() {
         String schema = """
-            CREATE TABLE IF NOT EXISTS Teacher (
+            CREATE TABLE IF NOT EXISTS Docentes (
                 id_teacher INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL
+                password_hash TEXT NOT NULL,
+                registration_code TEXT
             );
 
             CREATE TABLE IF NOT EXISTS Student (
@@ -31,7 +32,7 @@ public class DBSchema {
                 access_code TEXT UNIQUE NOT NULL,
                 start_datetime TEXT NOT NULL,
                 end_datetime TEXT NOT NULL,
-                FOREIGN KEY (teacher_id) REFERENCES Teacher(id_teacher)
+                FOREIGN KEY (teacher_id) REFERENCES Docentes(id_teacher)
             );
 
             CREATE TABLE IF NOT EXISTS Option (
@@ -59,9 +60,16 @@ public class DBSchema {
         try (Connection conn = ConnectDB.getConnection();
              Statement stmt = conn.createStatement()) {
 
-            // Enforces foreign keys for the connection
+            // Ensure foreign keys enabled for this connection
             stmt.execute("PRAGMA foreign_keys = ON");
-            stmt.execute(schema);
+
+            // Split script by semicolon and execute each statement individually
+            String[] parts = schema.split(";");
+            for (String part : parts) {
+                String sql = part.trim();
+                if (sql.isEmpty()) continue;
+                stmt.execute(sql);
+            }
         } catch (SQLException ex) {
             throw new IllegalStateException("Failed to create DB schema: " + ex.getMessage(), ex);
         }
