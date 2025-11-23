@@ -138,7 +138,7 @@ public class Client {
                             if (!loggedIn.get()) {
                                 System.out.println("No successful login detected yet. Check server response.");
                             }
-                        } else if ("3".equals(choice) || "exit".equalsIgnoreCase(choice)) {
+                        } else if ("3".equals(choice) || "exit".equalsIgnoreCase(choice) || "logout".equalsIgnoreCase(choice)) {
                             System.out.println("Exiting by user request...");
                             return;
                         } else {
