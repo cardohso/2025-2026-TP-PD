@@ -13,9 +13,6 @@ import java.util.logging.Logger;
 public class UsersRepository {
     private static final Logger LOG = Logger.getLogger(UsersRepository.class.getName());
 
-    /**
-     * Returns "OK" on success or a descriptive error message on failure.
-     */
     public static String registerStudent(String email, String password, String name, String studentNumber) {
         if (email == null || password == null || studentNumber == null) return "INVALID_INPUT";
         String e = email.trim().toLowerCase();
@@ -57,9 +54,6 @@ public class UsersRepository {
         }
     }
 
-    /**
-     * Returns "OK" on success or a descriptive error message on failure.
-     */
     public static String registerTeacher(String email, String password, String name, String registrationCode) {
         if (email == null || password == null) return "INVALID_INPUT";
         String e = email.trim().toLowerCase();

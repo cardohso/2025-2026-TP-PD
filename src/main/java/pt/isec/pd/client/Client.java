@@ -76,7 +76,7 @@ public class Client {
                         if (resp instanceof Message) {
                             Message serverMsg = (Message) resp;
                             System.out.println("\n[Server] " + serverMsg);
-                            // mark logged in when server sends AUTH_SUCCESS
+                            // mark as logged in when server sends AUTH_SUCCESS
                             if ("AUTH_SUCCESS".equals(serverMsg.getType())) {
                                 loggedIn.set(true);
                             } else if ("LOGOUT_SUCCESS".equals(serverMsg.getType())) {
@@ -110,7 +110,6 @@ public class Client {
                         }
                         choice = choice.trim();
                         if ("1".equals(choice)) {
-                            // choose role
                             System.out.println("Register as: 1) Student  2) Docente");
                             System.out.print("Choose role: ");
                             String roleChoice = console.readLine();

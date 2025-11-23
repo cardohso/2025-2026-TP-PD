@@ -9,9 +9,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public final class ConnectDB {
-    // Default URL
     private static volatile String url = initDefaultUrl();
-    // Indicates whether any connection has been opened (prevents changing DB file afterwards)
+    // Indicates connection status (prevents changing DB file afterwards)
     private static volatile boolean opened = false;
 
     private ConnectDB() { }
@@ -32,7 +31,7 @@ public final class ConnectDB {
     }
 
     public static Connection getConnection() throws SQLException {
-        // Ensure parent directories exist for file-based DBs
+        // Ensure parent directories exist for DBs
         try {
             String pathPart = url.replaceFirst("^jdbc:sqlite:", "");
             if (!":memory:".equals(pathPart)) {
@@ -48,7 +47,6 @@ public final class ConnectDB {
         }
 
         Connection conn = DriverManager.getConnection(url);
-        // Enable foreign keys for this connection; if it fails, close the connection and propagate
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON");
         } catch (SQLException ex) {

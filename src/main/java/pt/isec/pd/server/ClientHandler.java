@@ -77,7 +77,7 @@ public class ClientHandler extends Thread {
     }
 
     private void handleRegister(String payload) throws IOException {
-        // expected: ROLE|email|password|name|extra
+        // ROLE|email|password|name|extra
         String[] parts = payload.split("\\|", 5);
         String role = parts.length > 0 ? parts[0].trim().toUpperCase() : "STUDENT";
         String email = parts.length > 1 ? parts[1] : "";
@@ -97,10 +97,8 @@ public class ClientHandler extends Thread {
             result = UsersRepository.registerStudent(email, password, name, extra);
         }
 
-        // Log the raw result for debugging
+        // debugging
         System.out.println("[Server] Registration result for " + email + ": " + result);
-
-        // Map repository codes to user-friendly messages
         switch (result) {
             case "OK":
                 System.out.println("[Server] Registered " + role + ": " + email);
@@ -128,7 +126,6 @@ public class ClientHandler extends Thread {
                 break;
         }
     }
-
 
     private void handleAuth(String payload) throws IOException {
         String[] parts = payload.contains("|") ? payload.split("\\|", 3) : payload.split(":", 2);

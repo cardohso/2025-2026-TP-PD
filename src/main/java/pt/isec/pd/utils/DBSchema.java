@@ -63,7 +63,7 @@ public class DBSchema {
             // Ensure foreign keys enabled for this connection
             stmt.execute("PRAGMA foreign_keys = ON");
 
-            // Split script by semicolon and execute each statement individually
+            // Execute each statement individually
             String[] parts = schema.split(";");
             for (String part : parts) {
                 String sql = part.trim();

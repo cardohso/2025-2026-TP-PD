@@ -8,11 +8,7 @@ public class User implements Serializable {
     private String name;
     private String email;
     private String password;
-
-    // student specific field
     private String studentNumber;
-
-    // docente specific field
     private String registrationCode;
 
     // constructor for registration/editing of Docente

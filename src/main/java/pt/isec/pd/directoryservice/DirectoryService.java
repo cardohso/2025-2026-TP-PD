@@ -29,11 +29,9 @@ public class DirectoryService {
                 if ("CLIENT_REQUEST".equals(clientMessage.getType())) {
                     System.out.println("  -> Client request. Preparing response...");
 
-                    // Simulation: The Principal Server (IP:TCP Port)
                     String principalServerAddress = "127.0.0.1:5000";
                     Message responseMessage = new Message("DS_RESPONSE", principalServerAddress);
 
-                    // Send the response back to the client
                     try (Udp dsResponseUdp = new Udp(clientAddress, clientPort)) {
                         dsResponseUdp.send(responseMessage);
                         System.out.println("  -> Response sent: " + responseMessage.getContent());
