@@ -10,7 +10,7 @@ import java.sql.Statement;
 
 public final class ConnectDB {
     private static volatile String url = initDefaultUrl();
-    // Indicates connection status (prevents changing DB file afterwards)
+    // Indicates connection status (prevents changing DB file afterward)
     private static volatile boolean opened = false;
 
     private ConnectDB() { }

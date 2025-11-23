@@ -5,9 +5,9 @@ import java.io.Serializable;
 public class User implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String name;
-    private String email;
-    private String password;
+    private final String name;
+    private final String email;
+    private final String password;
     private String studentNumber;
     private String registrationCode;
 
@@ -33,7 +33,6 @@ public class User implements Serializable {
     public String getStudentNumber() { return studentNumber; }
     public String getRegistrationCode() { return registrationCode; }
 
-    // Método para identificar o tipo de utilizador para o Servidor
     public boolean isTeacherRequest() {
         return registrationCode != null && !registrationCode.isEmpty();
     }

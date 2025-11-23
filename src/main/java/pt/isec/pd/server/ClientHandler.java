@@ -35,11 +35,10 @@ public class ClientHandler extends Thread {
             ClientManager.register(this);
             Object obj;
             while ((obj = in.readObject()) != null) {
-                if (!(obj instanceof Message)) {
+                if (!(obj instanceof Message msg)) {
                     send(new Message("ERROR", "Unsupported object received"));
                     continue;
                 }
-                Message msg = (Message) obj;
                 System.out.println("[Server] Received -> type=" + msg.getType() + " content=" + msg.getContent());
                 handleMessage(msg);
             }
@@ -117,7 +116,7 @@ public class ClientHandler extends Thread {
                 send(new Message("REGISTER_FAILURE", "Failed to insert record"));
                 break;
             default:
-                if (result != null && result.startsWith("SQL_ERROR")) {
+                if (result.startsWith("SQL_ERROR")) {
                     send(new Message("REGISTER_FAILURE", "Server database error"));
                 } else {
                     // fallback for unknown messages
@@ -148,7 +147,7 @@ public class ClientHandler extends Thread {
         String userName = UsersRepository.authenticate(role, email, password);
         if (userName != null) {
             this.email = email.toLowerCase();
-            this.name = userName == null || userName.isEmpty() ? this.email : userName;
+            this.name = userName.isEmpty() ? this.email : userName;
             authenticated.set(true);
             System.out.println("[Server] Authentication success for: " + this.email + " as " + role);
             send(new Message("AUTH_SUCCESS", this.name));
@@ -180,12 +179,8 @@ public class ClientHandler extends Thread {
 
     public synchronized void send(Message msg) throws IOException {
         if (out == null) throw new IOException("Output stream not initialized");
-        try {
-            out.writeObject(msg);
-            out.flush();
-        } catch (SocketException se) {
-            throw se;
-        }
+        out.writeObject(msg);
+        out.flush();
     }
 
     public synchronized void closeSilently() throws IOException {
