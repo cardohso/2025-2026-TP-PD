@@ -10,14 +10,28 @@ import java.io.InputStreamReader;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Client {
-    private static final String DS_ADDRESS = "127.0.0.1";
-    private static final int DS_PORT = 9000;
 
     public static void main(String[] args) {
+        if (args.length < 2) {
+            System.err.println("Usage: java pt.isec.pd.client.Client <DirectoryServiceIP> <DirectoryServicePort>");
+            System.exit(1);
+        }
+
+        String dsAddress = args[0];
+        int dsPort;
+        try {
+            dsPort = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.err.println("Error: Directory service port must be an integer.");
+            System.exit(1);
+            return;
+        }
+
         System.out.println("Client starting...");
+        System.out.println("Attempting to contact Directory Service at " + dsAddress + ":" + dsPort);
         String principalServer = null;
 
-        try (Udp clientUdp = new Udp(DS_ADDRESS, DS_PORT)) {
+        try (Udp clientUdp = new Udp(dsAddress, dsPort)) {
             Message requestMessage = new Message("CLIENT_REQUEST", "GET_PRINCIPAL_SERVER");
             clientUdp.send(requestMessage);
             System.out.println("UDP request sent to DS.");
