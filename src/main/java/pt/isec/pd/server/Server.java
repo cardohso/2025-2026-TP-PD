@@ -1,9 +1,13 @@
+// java
 package pt.isec.pd.server;
 
 import pt.isec.pd.utils.DBSchema;
 import pt.isec.pd.utils.ConnectDB;
+import pt.isec.pd.common.Message;
+import pt.isec.pd.sockets.Udp;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
@@ -18,7 +22,6 @@ public class Server {
             System.exit(1);
         }
 
-        // Directory service address and UDP port
         String directoryServiceIP = args[0];
 
         int directoryServiceUDPPort;
@@ -30,10 +33,8 @@ public class Server {
             return;
         }
 
-        // Directory Path
         String dbDirectoryPath = args[2];
 
-        // TCP server port
         int serverPort = DEFAULT_PORT;
         if (args.length > 3) {
             try {
@@ -51,7 +52,6 @@ public class Server {
         System.out.println("  TCP Server Port: " + serverPort);
         System.out.println("------------------------------------");
 
-        // Configure DB file before creating tables
         try {
             ConnectDB.setDatabaseFile(dbDirectoryPath);
         } catch (IllegalStateException ise) {
@@ -59,23 +59,59 @@ public class Server {
             return;
         }
 
-        // Ensure DB tables exist before accepting connections
         DBSchema.createTables();
 
         ExecutorService pool = Executors.newCachedThreadPool();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutting down server...");
-            pool.shutdownNow();
-        }));
 
         System.out.println("Server starting on port " + serverPort);
-        try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
+        try (ServerSocket clientSocket = new ServerSocket(serverPort);
+             ServerSocket serverCopySocket = new ServerSocket(0)) {
+
+            int copyPort = serverCopySocket.getLocalPort();
+            System.out.println("Client listen port: " + clientSocket.getLocalPort());
+            System.out.println("Server-copy listen port (auto): " + copyPort);
+
+            // register shutdown hook after copyPort is known so it can notify DS immediately
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("Shutting down server... sending DEREGISTER to DS");
+                try {
+                    String host = InetAddress.getLocalHost().getHostAddress();
+                    String serverAddr = host + ":" + copyPort;
+                    try (Udp u = new Udp(directoryServiceIP, directoryServiceUDPPort)) {
+                        u.send(new Message("SERVER_DEREGISTER", serverAddr));
+                        System.out.println("DEREGISTER sent: " + serverAddr);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed to send DEREGISTER: " + e.getMessage());
+                } finally {
+                    pool.shutdownNow();
+                }
+            }, "server-shutdown"));
+
+            // start heartbeat sender
+            Thread hb = new Thread(new HeartbeatSender(directoryServiceIP, directoryServiceUDPPort, clientSocket.getLocalPort(), copyPort, dbDirectoryPath), "heartbeat-sender");
+            hb.setDaemon(true);
+            hb.start();
+
+            // accept server-copy connections in background
+            pool.submit(() -> {
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        Socket s = serverCopySocket.accept();
+                        System.out.println("Accepted server-copy connection from " + s.getRemoteSocketAddress());
+                        pool.submit(new SendDataBaseCopy(s, dbDirectoryPath));
+                    } catch (IOException e) {
+                        System.err.println("Error accepting server-copy connection: " + e.getMessage());
+                        break;
+                    }
+                }
+            });
+
+            // accept clients (existing behavior)
             while (true) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("Accepted connection from " + clientSocket.getRemoteSocketAddress());
-                ClientHandler handler = new ClientHandler(clientSocket);
-                // Submit handler to thread pool; keep existing behavior of calling start();
-                // Allows multiple clients simultaneously
+                Socket client = clientSocket.accept();
+                System.out.println("Accepted connection from " + client.getRemoteSocketAddress());
+                ClientHandler handler = new ClientHandler(client);
                 pool.submit(() -> {
                     try {
                         handler.start();
