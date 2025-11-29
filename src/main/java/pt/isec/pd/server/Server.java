@@ -68,14 +68,29 @@ public class Server {
              ServerSocket serverCopySocket = new ServerSocket(0)) {
 
             int copyPort = serverCopySocket.getLocalPort();
-            System.out.println("Client listen port: " + clientSocket.getLocalPort());
+            int actualClientPort = clientSocket.getLocalPort(); // Use the actual bound port
+            System.out.println("Client listen port: " + actualClientPort);
             System.out.println("Server-copy listen port (auto): " + copyPort);
+
+            // Register with Directory Service
+            try (Udp dsUdp = new Udp(directoryServiceIP, directoryServiceUDPPort)) {
+                String host = InetAddress.getLocalHost().getHostAddress();
+                // Send both ports: clientPort|copyPort
+                String payload = host + ":" + actualClientPort + "|" + host + ":" + copyPort;
+                dsUdp.send(new Message("SERVER_REGISTER", payload));
+                System.out.println("Sent registration to Directory Service: " + payload);
+            } catch (IOException e) {
+                System.err.println("Could not register with Directory Service: " + e.getMessage());
+                // Decide if server should exit if it cannot register
+            }
+
 
             // register shutdown hook after copyPort is known so it can notify DS immediately
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("Shutting down server... sending DEREGISTER to DS");
                 try {
                     String host = InetAddress.getLocalHost().getHostAddress();
+                    // The unique identifier for the server is its copy address
                     String serverAddr = host + ":" + copyPort;
                     try (Udp u = new Udp(directoryServiceIP, directoryServiceUDPPort)) {
                         u.send(new Message("SERVER_DEREGISTER", serverAddr));
@@ -89,7 +104,7 @@ public class Server {
             }, "server-shutdown"));
 
             // start heartbeat sender
-            Thread hb = new Thread(new HeartbeatSender(directoryServiceIP, directoryServiceUDPPort, clientSocket.getLocalPort(), copyPort, dbDirectoryPath), "heartbeat-sender");
+            Thread hb = new Thread(new HeartbeatSender(directoryServiceIP, directoryServiceUDPPort, actualClientPort, copyPort, dbDirectoryPath), "heartbeat-sender");
             hb.setDaemon(true);
             hb.start();
 
@@ -101,6 +116,7 @@ public class Server {
                         System.out.println("Accepted server-copy connection from " + s.getRemoteSocketAddress());
                         pool.submit(new SendDataBaseCopy(s, dbDirectoryPath));
                     } catch (IOException e) {
+                        if (Thread.currentThread().isInterrupted()) break;
                         System.err.println("Error accepting server-copy connection: " + e.getMessage());
                         break;
                     }
@@ -112,17 +128,7 @@ public class Server {
                 Socket client = clientSocket.accept();
                 System.out.println("Accepted connection from " + client.getRemoteSocketAddress());
                 ClientHandler handler = new ClientHandler(client);
-                pool.submit(() -> {
-                    try {
-                        handler.start();
-                    } catch (NoSuchMethodError | AbstractMethodError e) {
-                        if (handler instanceof Runnable) {
-                            ((Runnable) handler).run();
-                        } else {
-                            System.err.println("ClientHandler cannot be executed: " + e.getMessage());
-                        }
-                    }
-                });
+                pool.submit(handler); // ClientHandler is a Thread, can be submitted directly
             }
         } catch (IOException e) {
             System.err.println("Server I/O error: " + e.getMessage());
