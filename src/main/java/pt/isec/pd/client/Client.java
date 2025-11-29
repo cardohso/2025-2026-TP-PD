@@ -1,3 +1,4 @@
+// src/main/java/pt/isec/pd/client/Client.java
 package pt.isec.pd.client;
 
 import pt.isec.pd.sockets.Udp;
@@ -182,21 +183,42 @@ public class Client {
 
                     // logged in -> interactive loop
                     if (loggedIn.get()) {
-                        System.out.println("\nEnter messages to send or type `logout` to return to menu, `exit` to quit.");
+                        System.out.println("\n--- Main Menu ---");
+                        System.out.println("1) Edit Profile");
+                        System.out.println("2) Logout");
+                        System.out.println("3) Exit");
+                        System.out.println("Enter a command or type a message to broadcast.");
                         String line;
                         System.out.print("> ");
                         while ((line = console.readLine()) != null) {
-                            if ("exit".equalsIgnoreCase(line.trim())) {
+                            String command = line.trim();
+                            if ("3".equalsIgnoreCase(command) || "exit".equalsIgnoreCase(command)) {
                                 System.out.println("Exiting by user request...");
                                 return;
                             }
-                            if ("logout".equalsIgnoreCase(line.trim())) {
+                            if ("2".equalsIgnoreCase(command) || "logout".equalsIgnoreCase(command)) {
                                 clientTcp.send(new Message("LOGOUT_REQUEST", ""));
-                                // listener will set loggedIn = false on LOGOUT_SUCCESS
                                 System.out.println("Logout requested. Returning to initial menu...");
-                                break;
+                                break; // break inner loop to show initial menu
                             }
-                            if (line.trim().isEmpty()) {
+                            if ("1".equalsIgnoreCase(command) || "edit".equalsIgnoreCase(command)) {
+                                System.out.println("--- Edit Profile ---");
+                                System.out.print("New Name (leave blank to keep current): ");
+                                String newName = console.readLine();
+                                System.out.print("New Email (leave blank to keep current): ");
+                                String newEmail = console.readLine();
+                                System.out.print("New Password (leave blank to keep current): ");
+                                String newPassword = console.readLine();
+                                String payload = (newName == null ? "" : newName) + "|" +
+                                        (newEmail == null ? "" : newEmail) + "|" +
+                                        (newPassword == null ? "" : newPassword);
+                                clientTcp.send(new Message("UPDATE_PROFILE_REQUEST", payload));
+                                System.out.println("Update request sent.");
+                                System.out.print("> ");
+                                continue;
+                            }
+
+                            if (command.isEmpty()) {
                                 System.out.print("> ");
                                 continue;
                             }

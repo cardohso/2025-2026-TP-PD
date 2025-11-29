@@ -1,4 +1,4 @@
-// java
+// src/main/java/pt/isec/pd/server/ClientHandler.java
 package pt.isec.pd.server;
 
 import pt.isec.pd.common.Message;
@@ -18,6 +18,7 @@ public class ClientHandler extends Thread {
     private ObjectInputStream in;
     private volatile String email;
     private volatile String name;
+    private volatile String role; // To know if user is DOCENTE or STUDENT
     private final AtomicBoolean authenticated = new AtomicBoolean(false);
 
     public ClientHandler(Socket socket) {
@@ -67,11 +68,48 @@ public class ClientHandler extends Thread {
             case "LOGOUT_REQUEST":
                 handleLogout();
                 break;
+            case "UPDATE_PROFILE_REQUEST":
+                handleUpdateProfile(content);
+                break;
             case "CLIENT_MESSAGE":
                 handleClientMessage(content);
                 break;
             default:
                 send(new Message("ACK", "Unknown request type: " + type));
+        }
+    }
+
+    private void handleUpdateProfile(String payload) throws IOException {
+        if (!authenticated.get()) {
+            send(new Message("UPDATE_FAILURE", "Not authenticated"));
+            return;
+        }
+        // payload: newName|newEmail|newPassword
+        String[] parts = payload.split("\\|", 3);
+        String newName = parts.length > 0 ? parts[0] : "";
+        String newEmail = parts.length > 1 ? parts[1] : "";
+        String newPassword = parts.length > 2 ? parts[2] : "";
+
+        String result;
+        if ("DOCENTE".equalsIgnoreCase(this.role)) {
+            result = UsersRepository.updateTeacher(this.email, newName, newEmail, newPassword);
+        } else {
+            // Similar logic can be added for students
+            send(new Message("UPDATE_FAILURE", "Profile update not supported for this role yet."));
+            return;
+        }
+
+        if ("OK".equals(result)) {
+            // If email was changed, update it in the handler state
+            if (newEmail != null && !newEmail.isBlank()) {
+                this.email = newEmail.trim().toLowerCase();
+            }
+            if (newName != null && !newName.isBlank()) {
+                this.name = newName.trim();
+            }
+            send(new Message("UPDATE_SUCCESS", "Profile updated successfully."));
+        } else {
+            send(new Message("UPDATE_FAILURE", result));
         }
     }
 
@@ -148,6 +186,7 @@ public class ClientHandler extends Thread {
         if (userName != null) {
             this.email = email.toLowerCase();
             this.name = userName.isEmpty() ? this.email : userName;
+            this.role = role;
             authenticated.set(true);
             System.out.println("[Server] Authentication success for: " + this.email + " as " + role);
             send(new Message("AUTH_SUCCESS", this.name));
@@ -161,6 +200,7 @@ public class ClientHandler extends Thread {
         if (authenticated.getAndSet(false)) {
             this.email = null;
             this.name = null;
+            this.role = null;
             System.out.println("[Server] Client logged out: " + clientSocket.getRemoteSocketAddress());
             send(new Message("LOGOUT_SUCCESS", ""));
         } else {
