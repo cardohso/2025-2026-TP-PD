@@ -116,53 +116,69 @@ public class ClientHandler extends Thread {
     private void handleRegister(String payload) throws IOException {
         // ROLE|email|password|name|extra
         String[] parts = payload.split("\\|", 5);
-        String role = parts.length > 0 ? parts[0].trim().toUpperCase() : "STUDENT";
-        String email = parts.length > 1 ? parts[1] : "";
-        String password = parts.length > 2 ? parts[2] : "";
-        String name = parts.length > 3 ? parts[3] : "";
-        String extra = parts.length > 4 ? parts[4] : ""; // studentNumber or registrationCode
+        if (parts.length < 5) {
+            send(new Message("REGISTER_FAILURE", "Invalid registration format. Expected: ROLE|email|password|name|extra"));
+            return;
+        }
+        String role = parts[0].trim().toUpperCase();
+        String email = parts[1];
+        String password = parts[2];
+        String name = parts[3];
+        String extra = parts[4]; // studentNumber or registrationCode
+
+        System.out.println("[Server Debug] Role: " + role + ", Email: " + email + ", Name: " + name + ", Extra: " + extra);
 
         if (email.isEmpty() || password.isEmpty()) {
-            send(new Message("REGISTER_FAILURE", "Email and password required"));
+            send(new Message("REGISTER_FAILURE", "Email and password are required."));
             return;
         }
 
         String result;
         if ("DOCENTE".equals(role)) {
+            if (extra.isEmpty()) {
+                send(new Message("REGISTER_FAILURE", "Registration code is required for Docente."));
+                return;
+            }
             result = UsersRepository.registerTeacher(email, password, name, extra);
         } else {
+            if (extra.isEmpty()) {
+                send(new Message("REGISTER_FAILURE", "Student number is required for Student."));
+                return;
+            }
             result = UsersRepository.registerStudent(email, password, name, extra);
         }
 
-        // debugging
         System.out.println("[Server] Registration result for " + email + ": " + result);
         switch (result) {
             case "OK":
                 System.out.println("[Server] Registered " + role + ": " + email);
-                send(new Message("REGISTER_SUCCESS", email));
+                send(new Message("REGISTER_SUCCESS", "Registration successful for " + email));
                 break;
             case "EMAIL_ALREADY_EXISTS":
-                send(new Message("REGISTER_FAILURE", "Email already registered"));
+                send(new Message("REGISTER_FAILURE", "This email is already registered."));
                 break;
             case "STUDENT_NUMBER_ALREADY_EXISTS":
-                send(new Message("REGISTER_FAILURE", "Student number already registered"));
+                send(new Message("REGISTER_FAILURE", "This student number is already registered."));
+                break;
+            case "INVALID_REGISTRATION_CODE":
+                send(new Message("REGISTER_FAILURE", "The provided registration code is incorrect."));
                 break;
             case "INVALID_INPUT":
-                send(new Message("REGISTER_FAILURE", "Invalid input (missing fields)"));
+                send(new Message("REGISTER_FAILURE", "Invalid input provided (e.g., missing fields)."));
                 break;
             case "ERROR_INSERT":
-                send(new Message("REGISTER_FAILURE", "Failed to insert record"));
+                send(new Message("REGISTER_FAILURE", "An error occurred while saving the new user."));
                 break;
             default:
-                if (result.startsWith("SQL_ERROR")) {
-                    send(new Message("REGISTER_FAILURE", "Server database error"));
+                if (result != null && result.startsWith("SQL_ERROR")) {
+                    send(new Message("REGISTER_FAILURE", "A database error occurred on the server."));
                 } else {
-                    // fallback for unknown messages
-                    send(new Message("REGISTER_FAILURE", "User already exists or error"));
+                    send(new Message("REGISTER_FAILURE", "An unknown error occurred during registration. Details: " + result));
                 }
                 break;
         }
     }
+
 
     private void handleAuth(String payload) throws IOException {
         String[] parts = payload.contains("|") ? payload.split("\\|", 3) : payload.split(":", 2);

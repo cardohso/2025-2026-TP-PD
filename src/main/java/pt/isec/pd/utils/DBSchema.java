@@ -55,7 +55,14 @@ public class DBSchema {
                 FOREIGN KEY (student_id) REFERENCES Student(id_student),
                 FOREIGN KEY (question_id) REFERENCES Question(id_question)
             );
+            
+            CREATE TABLE IF NOT EXISTS configuration (
+                database_version INTEGER NOT NULL DEFAULT 0,
+                teacher_code     INTEGER NOT NULL DEFAULT 1509442
+            );
             """;
+
+        // 1509442 is the default teacher registration code that equals "1234"
 
         try (Connection conn = ConnectDB.getConnection();
              Statement stmt = conn.createStatement()) {
